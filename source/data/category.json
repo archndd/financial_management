@@ -1,0 +1,14 @@
+{
+    "0": {
+        "name": "food",
+        "range": 100000
+    },
+    "1": {
+        "name": "rent",
+        "range": 1000000
+    },
+    "2": {
+        "name": "entertaining",
+        "range": 50000
+    }
+}
