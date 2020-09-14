@@ -19,6 +19,7 @@ class DateViewFrame(tk.Frame):
         self.total = 0
         self.total_label = tk.Label(self)
         self.delete_button = tk.Button(self, text="Delete", command=self.delete)
+        self.save_button = tk.Button(self, text='Save', command=self.save)
 
         for i in range(2):
             tk.Grid.rowconfigure(self, i, weight=1)
@@ -31,6 +32,7 @@ class DateViewFrame(tk.Frame):
         self.list_box_col.grid(row=1, column=0, columnspan=3, sticky="nswe")
         self.total_label.grid(row=2, column=0)
         self.delete_button.grid(row=2, column=1)
+        self.save_button.grid(row=2, column=2)
 
         self.update()
 
@@ -50,7 +52,10 @@ class DateViewFrame(tk.Frame):
         self.update()
 
     def insert(self, data):
-        self.data[self.format_current_date()].append(data)
+        try:
+            self.data[self.format_current_date()].append(data)
+        except:
+            self.data[self.format_current_date()] = [data]
         self.list_box_col.insert(data)
         self.total += int(data[1])
         self.total_label.config(text=format(self.total, ","))
@@ -63,11 +68,14 @@ class DateViewFrame(tk.Frame):
 
         self.total_label.config(text=format(self.total, ","))
 
+    def save(self):
+        with open("data/data.json", 'w') as f:
+            json.dump(self.data, f, indent=4)
+
     def update(self):
         self.total = 0
         try:
             for val in self.data[self.format_current_date()]:
-                print(val)
                 self.total += int(val[1])
                 self.list_box_col.insert(val)
         except:
@@ -80,21 +88,27 @@ class InsertingFrame(tk.Frame):
         self.parent = parent
         super().__init__(parent, *args, **kawrgs)
         with open("data/category.json") as f:
-            data = json.load(f)
+            self.data = json.load(f)
 
         self.category_frame = tk.Frame(self)
         self.spend_frame = tk.Frame(self)
 
         self.spend_entry = tk.Entry(self.spend_frame)
-        self.spend_entry.pack()
 
         self.cate_var = tk.StringVar(value="0")
-        self.spend_var = tk.StringVar(value="0")
-        for key, val in data.items():
-            clabel = tk.Radiobutton(self.category_frame, variable=self.cate_var, value=val["name"], text=val["name"], anchor="w")
-            slabel = tk.Radiobutton(self.spend_frame, variable=self.spend_var, value=val["range"], text=val["range"], anchor="w")
+        self.spend_var = tk.IntVar(value=0)
+        self.range_rbutton_list = []
+        for key, val in self.data.items():
+            clabel = tk.Radiobutton(self.category_frame, variable=self.cate_var, value=key, text=val["name"], anchor="w")
             clabel.pack(anchor="w")
-            slabel.pack(anchor="w")
+        for i, price in enumerate(self.data["0"]["range"]):
+            slabel = tk.Radiobutton(self.spend_frame, variable=self.spend_var, value=price, text=format(price, ","), anchor="w")
+            self.range_rbutton_list.append(slabel)
+            slabel.grid(row=i//2+1, column=i%2, sticky="we")
+
+        self.spend_entry.grid(row=0, column=0, columnspan=2)
+        self.cate_var.trace_add('write', self.cate_var_change)
+        self.spend_var.trace_add("write", self.spend_var_change)
 
         self.add_button = tk.Button(self, text="Add", command=self.add_item)
 
@@ -102,10 +116,24 @@ class InsertingFrame(tk.Frame):
         self.spend_frame.pack(side="left")
         self.add_button.pack(side="left")
 
+    def cate_var_change(self, *args):
+        self.spend_entry.delete(0, "end")
+        self.spend_var.set("0")
+        cate_id = self.cate_var.get()
+        for slabel, price in zip(self.range_rbutton_list, self.data[cate_id]["range"]):
+            slabel.config(value=price, text=format(price, ","))
+
+    def spend_var_change(self, *args):
+        p = self.spend_var.get()
+        self.spend_entry.delete(0, "end")
+        self.spend_entry.insert(0, format(p, ","))
+
     def add_item(self):
-        cate = self.cate_var.get()
+        cate_id = self.cate_var.get()
+        cate = self.data[cate_id]["name"]
         spend = self.spend_var.get()
         self.parent.date_view_frame.insert([cate, spend, ""])
+        self.spend_entry.delete(0, "end")
 
 
 class MainApplication(tk.Frame):
